@@ -116,7 +116,15 @@ struct AutoplayRecoveryJSTests {
     func observerScriptRetriesRecoveryWhenMediaAlreadyReady() {
         #expect(SingletonPlayerWebView.observerScript.contains("video.readyState >= 3"))
     }
-}
+
+    @Test("Observer script retries autoplay recovery while playback is pending")
+    func observerScriptRetriesWhilePending() {
+        #expect(SingletonPlayerWebView.observerScript.contains("scheduleAutoplayRecoveryBurst"))
+        #expect(SingletonPlayerWebView.observerScript.contains("!window.__kasetAutoplayPending || !video.paused"))
+        #expect(SingletonPlayerWebView.observerScript.contains("AUTOPLAY_RECOVERY_INTERVAL_MS"))
+        #expect(SingletonPlayerWebView.observerScript.contains("MAX_AUTOPLAY_RECOVERY_ATTEMPTS"))
+    }
+  }
 
 // MARK: - AutoplayIntentScriptTests
 
