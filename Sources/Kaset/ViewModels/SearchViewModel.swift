@@ -417,7 +417,6 @@ final class SearchViewModel {
                         firstError = error
                     }
                     self.logger.warning("Filtered fallback search failed: \(error.localizedDescription)")
-                }
             }
         }
 
