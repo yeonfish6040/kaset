@@ -31,7 +31,7 @@ struct AutoplayRecoveryJSTests {
         #expect(ctx.evaluateScript("clicked").toBool() == true)
         #expect(ctx.evaluateScript("played").toBool() == false)
         #expect(ctx.evaluateScript("result").toString() == "clicked")
-        #expect(ctx.evaluateScript("window.__kasetAutoplayPending").toBool() == false)
+        #expect(ctx.evaluateScript("window.__kasetAutoplayPending").toBool() == true)
     }
 
     @Test("Falls back to video.play() when the player-bar button is not mounted")
@@ -47,7 +47,7 @@ struct AutoplayRecoveryJSTests {
         )
         #expect(ctx.evaluateScript("played").toBool() == true)
         #expect(ctx.evaluateScript("result").toString() == "played")
-        #expect(ctx.evaluateScript("window.__kasetAutoplayPending").toBool() == false)
+        #expect(ctx.evaluateScript("window.__kasetAutoplayPending").toBool() == true)
     }
 
     @Test("Does nothing and clears the flag when the video is already playing")
@@ -99,7 +99,7 @@ struct AutoplayRecoveryJSTests {
             """
         )
         #expect(ctx.evaluateScript("result").toString() == "error")
-        #expect(ctx.evaluateScript("window.__kasetAutoplayPending").toBool() == false)
+        #expect(ctx.evaluateScript("window.__kasetAutoplayPending").toBool() == true)
     }
 
     @Test("Observer script embeds the recovery function")
@@ -124,7 +124,7 @@ struct AutoplayRecoveryJSTests {
         #expect(SingletonPlayerWebView.observerScript.contains("AUTOPLAY_RECOVERY_INTERVAL_MS"))
         #expect(SingletonPlayerWebView.observerScript.contains("MAX_AUTOPLAY_RECOVERY_ATTEMPTS"))
     }
-  }
+}
 
 // MARK: - AutoplayIntentScriptTests
 

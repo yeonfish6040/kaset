@@ -9,7 +9,6 @@ extension SingletonPlayerWebView {
         function __kasetAttemptAutoplayRecovery(video, playBtn) {
             if (!window.__kasetAutoplayPending) return 'noop';
             if (!video.paused) { window.__kasetAutoplayPending = false; return 'noop'; }
-            window.__kasetAutoplayPending = false;
             if (playBtn) { playBtn.click(); return 'clicked'; }
             try { video.play(); return 'played'; } catch (e) { return 'error'; }
         }
@@ -180,6 +179,7 @@ extension SingletonPlayerWebView {
                     // there may not be another `canplay` event to drive recovery.
                     if (video.readyState >= 3) {
                         recoverAutoplayIfNeeded();
+                        scheduleAutoplayRecoveryBurst();
                     }
 
                     // Startup enforcement burst: YouTube may reset volume up to ~2s after
