@@ -282,7 +282,7 @@ struct NowPlayingLyricsView: View {
             HStack {
                 Text(self.formatTime(self.isSeeking ? self.seekValue * self.playerService.duration : self.playerService.progress))
                 Spacer()
-                Text("-\(self.formatTime(self.playerService.duration - self.seekValue * self.playerService.duration))")
+                Text("-\(self.formatTime(self.playerService.duration - (self.isSeeking ? self.seekValue * self.playerService.duration : self.playerService.progress)))")
             }
             .font(.system(size: 11, weight: .medium))
             .monospacedDigit()
