@@ -193,6 +193,50 @@ final class SyncedLyricsService {
         _ = self.resolveLyrics(best: self.bestResult(in: allResults), cached: nil, videoId: info.videoId)
     }
 
+    private func fetchProviderResults(
+        for info: LyricsSearchInfo,
+        from providers: [(index: Int, provider: LyricsProvider)]
+    ) async -> [ProviderResult] {
+        var results: [ProviderResult] = []
+
+        await withTaskGroup(of: ProviderResult?.self) { group in
+            for entry in providers {
+                group.addTask {
+                    let result = await entry.provider.search(info: info)
+                    return ProviderResult(
+                        provider: entry.provider.name,
+                        providerIndex: entry.index,
+                        result: result
+                    )
+                }
+            }
+
+            for await result in group {
+                guard let result else { continue }
+                results.append(result)
+                self.providerCache[info.videoId, default: [:]][result.provider] = result.result
+            }
+        }
+
+        return results
+    }
+
+    private func bestResult(in results: [ProviderResult]) -> ProviderResult? {
+        var best: ProviderResult?
+        for candidate in results {
+            guard let currentBest = best else {
+                best = candidate
+                continue
+            }
+
+            if self.isBetter(candidate, than: currentBest) {
+                best = candidate
+            }
+        }
+
+        return best
+    }
+
     private func observeRomanizationSetting() {
         withObservationTracking {
             _ = SettingsManager.shared.romanizationEnabled
@@ -236,6 +280,10 @@ final class SyncedLyricsService {
         case .unavailable:
             0
         }
+    }
+
+    private static func isSyncedCapableProvider(_ provider: LyricsProvider) -> Bool {
+        provider is LRCLibProvider || provider is YTMusicSyncedProvider
     }
 
     private func isBetter(_ candidate: ProviderResult, than currentBest: ProviderResult) -> Bool {
