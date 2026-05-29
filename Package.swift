@@ -18,6 +18,10 @@ let package = Package(
             name: "api-explorer",
             targets: ["APIExplorer"]
         ),
+        .library(
+            name: "YouTubeExtraction",
+            targets: ["YouTubeExtraction"]
+        ),
     ],
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1"),
@@ -28,6 +32,7 @@ let package = Package(
             name: "Kaset",
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle"),
+                "YouTubeExtraction",
             ],
             exclude: [
                 "Resources/AppIcon.icon",
@@ -47,6 +52,15 @@ let package = Package(
         // API Explorer CLI tool
         .executableTarget(
             name: "APIExplorer",
+            dependencies: [
+                "YouTubeExtraction",
+            ],
+            swiftSettings: [
+                .swiftLanguageMode(.v6),
+            ]
+        ),
+        .target(
+            name: "YouTubeExtraction",
             swiftSettings: [
                 .swiftLanguageMode(.v6),
             ]
@@ -54,7 +68,7 @@ let package = Package(
         // Unit tests
         .testTarget(
             name: "KasetTests",
-            dependencies: ["Kaset"],
+            dependencies: ["Kaset", "YouTubeExtraction"],
             resources: [
                 .process("Fixtures"),
             ],

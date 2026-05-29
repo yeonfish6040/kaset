@@ -422,6 +422,18 @@ final class MockUITestYTMusicClient: YTMusicClientProtocol {
         return .unavailable
     }
 
+    func getPlayer(videoId _: String) async throws -> [String: Any] {
+        try? await Task.sleep(for: .milliseconds(100))
+        return [
+            "playabilityStatus": [
+                "status": "OK",
+            ],
+            "streamingData": [
+                "adaptiveFormats": [],
+            ],
+        ]
+    }
+
     func getSong(videoId: String) async throws -> Song {
         try? await Task.sleep(for: .milliseconds(100))
         return Song(

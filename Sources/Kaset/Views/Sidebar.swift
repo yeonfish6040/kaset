@@ -70,6 +70,11 @@ struct Sidebar: View {
                         }
                         .accessibilityIdentifier(AccessibilityID.Sidebar.libraryItem)
 
+                        NavigationLink(value: SidebarSelection.navigation(.offlineStorage)) {
+                            Label(NavigationItem.offlineStorage.displayName, systemImage: NavigationItem.offlineStorage.icon)
+                        }
+                        .accessibilityIdentifier(AccessibilityID.Sidebar.offlineStorageItem)
+
                         NavigationLink(value: SidebarSelection.navigation(.likedMusic)) {
                             Label(NavigationItem.likedMusic.displayName, systemImage: NavigationItem.likedMusic.icon)
                         }

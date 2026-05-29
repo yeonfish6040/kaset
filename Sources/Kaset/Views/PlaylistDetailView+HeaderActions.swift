@@ -55,6 +55,7 @@ extension PlaylistDetailView {
 
             self.sidebarButton(detail, showsTitles: showsTitles)
             self.libraryButton(detail, showsTitles: showsTitles)
+            self.offlineStorageButton(detail, showsTitles: showsTitles)
             self.playlistManagementButtons(detail, showsTitles: showsTitles)
         }
     }
@@ -150,6 +151,37 @@ extension PlaylistDetailView {
             .buttonStyle(.bordered)
             .controlSize(.large)
         }
+    }
+
+    @ViewBuilder
+    private func offlineStorageButton(_ detail: PlaylistDetail, showsTitles: Bool) -> some View {
+        let isSavedOffline = self.offlineStorageManager.playlistRecord(for: detail.id) != nil
+        let title = isSavedOffline ? String(localized: "Refresh Offline") : String(localized: "Save Offline")
+        Button {
+            Task {
+                await self.offlineStorageManager.savePlaylist(
+                    Playlist(
+                        id: detail.id,
+                        title: detail.title,
+                        description: detail.description,
+                        thumbnailURL: detail.thumbnailURL,
+                        trackCount: detail.trackCount,
+                        author: detail.author,
+                        canDelete: detail.canDelete
+                    ),
+                    using: self.viewModel.client
+                )
+            }
+        } label: {
+            self.headerActionLabel(
+                title,
+                systemImage: isSavedOffline ? "checkmark.circle.fill" : "externaldrive.badge.plus",
+                showsTitle: showsTitles
+            )
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .accessibilityIdentifier(AccessibilityID.PlaylistDetail.offlineSaveButton)
     }
 
     @ViewBuilder

@@ -39,6 +39,7 @@ struct KasetApp: App {
     @State private var accountService: AccountService?
     @State private var scrobblingCoordinator: ScrobblingCoordinator
     @State private var syncedLyricsService: SyncedLyricsService
+    @State private var offlineStorageManager = OfflineStorageManager()
     @State private var equalizerService = EqualizerService.shared
     @State private var settings = SettingsManager.shared
     @State private var podcastsAvailabilityService = PodcastsAvailabilityService()
@@ -134,6 +135,7 @@ struct KasetApp: App {
                     .environment(self.accountService)
                     .environment(self.scrobblingCoordinator)
                     .environment(self.syncedLyricsService)
+                    .environment(self.offlineStorageManager)
                     .environment(self.equalizerService)
                     .environment(self.podcastsAvailabilityService)
                     .environment(\.searchFocusTrigger, self.$searchFocusTrigger)
@@ -156,6 +158,10 @@ struct KasetApp: App {
 
                         // Fetch accounts after login check (for account switcher)
                         await self.accountService?.fetchAccounts()
+
+                        if self.authService.state.isLoggedIn {
+                            await self.offlineStorageManager.refreshLibraryPlaylists(using: self.sharedClient)
+                        }
 
                         // Warm up Foundation Models in background
                         await FoundationModelsService.shared.warmup()
@@ -195,6 +201,12 @@ struct KasetApp: App {
                     .onChange(of: self.settings.keepMiniPlayerOnTop) { _, _ in
                         MiniPlayerWindowController.shared.syncWindowState()
                     }
+                    .onChange(of: self.settings.offlineStorageEnabled) { _, newValue in
+                        guard newValue else { return }
+                        Task {
+                            await self.offlineStorageManager.refreshLibraryPlaylists(using: self.sharedClient)
+                        }
+                    }
             }
         }
 
@@ -205,6 +217,7 @@ struct KasetApp: App {
                 .environment(self.updaterService)
                 .environment(self.scrobblingCoordinator)
                 .environment(self.equalizerService)
+                .environment(self.offlineStorageManager)
         }
         .commands {
             // Check for Updates command in app menu

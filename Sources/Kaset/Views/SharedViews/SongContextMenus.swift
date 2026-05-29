@@ -66,6 +66,31 @@ struct AddToQueueContextMenu: View {
     }
 }
 
+// MARK: - OfflineStorageContextMenu
+
+/// Reusable context-menu item for saving songs offline.
+@available(macOS 26.0, *)
+struct OfflineStorageContextMenu: View {
+    let song: Song
+    let client: any YTMusicClientProtocol
+
+    @Environment(OfflineStorageManager.self) private var offlineStorageManager
+
+    var body: some View {
+        let isSavedOffline = self.offlineStorageManager.songRecord(for: self.song.videoId) != nil
+        Button {
+            Task {
+                await self.offlineStorageManager.saveSong(self.song, using: self.client)
+            }
+        } label: {
+            Label(
+                isSavedOffline ? "Refresh Offline" : "Save Offline",
+                systemImage: isSavedOffline ? "checkmark.circle.fill" : "externaldrive.badge.plus"
+            )
+        }
+    }
+}
+
 // MARK: - AddToPlaylistContextMenu
 
 /// Reusable context-menu submenu for adding a song to one of the user's playlists.

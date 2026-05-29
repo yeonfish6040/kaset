@@ -2,6 +2,7 @@
 import CryptoKit
 import Foundation
 import os
+import YouTubeExtraction
 
 // MARK: - PaginatedContentType
 
@@ -53,7 +54,11 @@ final class YTMusicClient: YTMusicClientProtocol {
     private static let apiKey = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
 
     /// Client version for WEB_REMIX.
-    private static let clientVersion = "1.20231204.01.00"
+    /// Keep this aligned with current yt-dlp/web_music behavior.
+    private static let clientVersion = "1.20260114.03.00"
+
+    /// Fallback iOS client version used by yt-dlp when WEB_REMIX does not expose downloadable streams.
+    private static let iOSClientVersion = "21.02.3"
 
     /// Centralized storage for continuation tokens keyed by content type.
     private var continuationTokens: [PaginatedContentType: String] = [:]
@@ -1220,6 +1225,72 @@ final class YTMusicClient: YTMusicClientProtocol {
         return song
     }
 
+    /// Fetches the raw player response for a video ID.
+    func getPlayer(videoId: String) async throws -> [String: Any] {
+        self.logger.info("Fetching player response: \(videoId)")
+
+        let playerContext = await YouTubePlayerContextProvider.shared.currentContext(videoId: videoId)
+        var body = Self.playerRequestBody(videoId: videoId, signatureTimestamp: playerContext?.signatureTimestamp)
+
+        if let playerToken = YouTubePOToken.configuredPlayerToken() {
+            body["serviceIntegrityDimensions"] = ["poToken": playerToken]
+        }
+
+        let musicResponse = try await self.request("player", body: body, ttl: APICache.TTL.songMetadata)
+        guard !Self.hasDownloadableAudioFormats(musicResponse) else {
+            return musicResponse
+        }
+
+        self.logger.info("WEB_REMIX player returned no downloadable audio formats; trying iOS player fallback")
+        let iOSResponse = try await self.request(
+            "player",
+            body: body,
+            context: Self.buildIOSContext(),
+            ttl: nil
+        )
+        return Self.hasDownloadableAudioFormats(iOSResponse) ? iOSResponse : musicResponse
+    }
+
+    /// Downloads an audio stream using the authenticated YT Music session.
+    func downloadAuthenticatedAudio(
+        from url: URL,
+        mimeType: String,
+        song: Song,
+        rootURL: URL,
+        fileManager: FileManager
+    ) async throws -> OfflineStorageManager.DownloadedAudio {
+        await self.webKitManager.waitForInitialCookieRestore()
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 60
+        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+
+        let (tempURL, response) = try await self.session.download(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw YTMusicError.unknown(message: "Missing HTTP response for \(song.title)")
+        }
+        guard (200 ..< 300).contains(httpResponse.statusCode) else {
+            throw YTMusicError.apiError(
+                message: "Failed to download audio for \(song.title)",
+                code: httpResponse.statusCode
+            )
+        }
+
+        let responseMimeType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? mimeType
+        let effectiveMimeType = responseMimeType.isEmpty ? mimeType : responseMimeType
+        return try await OfflineStorageManager.persistDownloadedAudio(
+            tempURL: tempURL,
+            mimeType: effectiveMimeType,
+            song: song,
+            rootURL: rootURL,
+            fileManager: fileManager
+        )
+    }
+
     // MARK: - Mood/Genre Category
 
     /// Fetches content for a moods/genres category page.
@@ -1581,6 +1652,7 @@ final class YTMusicClient: YTMusicClientProtocol {
         let sapisidhash = "\(timestamp)_\(hash)"
 
         return [
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
             "Cookie": cookieHeader,
             "Authorization": "SAPISIDHASH \(sapisidhash)",
             "Origin": origin,
@@ -1626,11 +1698,69 @@ final class YTMusicClient: YTMusicClientProtocol {
         ]
     }
 
+    private static func buildIOSContext() -> [String: Any] {
+        [
+            "client": [
+                "clientName": "IOS",
+                "clientVersion": self.iOSClientVersion,
+                "deviceMake": "Apple",
+                "deviceModel": "iPhone16,2",
+                "userAgent": "com.google.ios.youtube/\(self.iOSClientVersion) (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)",
+                "osName": "iPhone",
+                "osVersion": "18.3.2.22D82",
+            ],
+            "user": [
+                "lockedSafetyMode": false,
+            ],
+        ]
+    }
+
+    private static func playerRequestBody(videoId: String, signatureTimestamp: Int?) -> [String: Any] {
+        var contentPlaybackContext: [String: Any] = [
+            "autoCaptionsDefaultOn": false,
+            "autonavState": "STATE_NONE",
+            "html5Preference": "HTML5_PREF_WANTS",
+            "lactMilliseconds": "-1",
+            "splay": false,
+            "vis": 0,
+        ]
+        if let signatureTimestamp {
+            contentPlaybackContext["signatureTimestamp"] = signatureTimestamp
+        }
+
+        return [
+            "videoId": videoId,
+            "contentCheckOk": true,
+            "racyCheckOk": true,
+            "playbackContext": [
+                "contentPlaybackContext": contentPlaybackContext,
+            ],
+        ]
+    }
+
+    private static func hasDownloadableAudioFormats(_ playerResponse: [String: Any]) -> Bool {
+        guard let streamingData = playerResponse["streamingData"] as? [String: Any] else {
+            return false
+        }
+
+        let adaptiveFormats = streamingData["adaptiveFormats"] as? [[String: Any]] ?? []
+        let formats = streamingData["formats"] as? [[String: Any]] ?? []
+        return (adaptiveFormats + formats).contains { format in
+            (format["mimeType"] as? String)?.contains("audio/") == true
+                && YouTubeStreamURLResolver.streamFormat(from: format) != nil
+        }
+    }
+
     /// Makes an authenticated request to the API with optional caching and retry.
-    private func request(_ endpoint: String, body: [String: Any], ttl: TimeInterval? = nil) async throws -> [String: Any] {
+    private func request(
+        _ endpoint: String,
+        body: [String: Any],
+        context: [String: Any]? = nil,
+        ttl: TimeInterval? = nil
+    ) async throws -> [String: Any] {
         // Build request body with context so cache keys reflect the actual request
         var fullBody = body
-        fullBody["context"] = self.buildContext()
+        fullBody["context"] = context ?? self.buildContext()
 
         // Generate stable cache key from endpoint, full body, and brand account ID
         // Brand ID must be in cache key to prevent returning cached data from other accounts

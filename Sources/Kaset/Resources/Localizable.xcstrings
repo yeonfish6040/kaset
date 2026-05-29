@@ -11398,6 +11398,322 @@
         }
       }
     }
+    ,
+    "Enable Offline Storage": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تفعيل التخزين دون اتصال"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer le stockage hors ligne"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktifkan penyimpanan offline"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오프라인 저장 사용"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çevrimdışı depolamayı etkinleştir"
+          }
+        }
+      }
+    },
+    "Saved playlists and songs are stored locally for offline access.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يتم تخزين قوائم التشغيل والأغاني المحفوظة محليًا للوصول إليها دون اتصال."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les playlists et morceaux enregistrés sont stockés localement pour un accès hors ligne."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playlist dan lagu yang disimpan disimpan secara lokal agar bisa diakses saat offline."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재생목록과 노래가 오프라인으로 사용할 수 있도록 로컬에 저장됩니다."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaydedilen çalma listeleri ve şarkılar, çevrimdışı erişim için yerel olarak saklanır."
+          }
+        }
+      }
+    },
+    "Enable offline storage or save a playlist from its detail view to populate this list.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فعّل التخزين دون اتصال أو احفظ قائمة تشغيل من صفحة التفاصيل لملء هذه القائمة."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activez le stockage hors ligne ou enregistrez une playlist depuis sa page de détails pour remplir cette liste."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktifkan penyimpanan offline atau simpan playlist dari halaman detailnya untuk mengisi daftar ini."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오프라인 저장을 사용하거나 재생목록 상세 화면에서 재생목록을 저장하면 목록이 채워집니다."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu listeyi doldurmak için çevrimdışı depolamayı etkinleştirin veya ayrıntı görünümünden bir çalma listesini kaydedin."
+          }
+        }
+      }
+    },
+    "Save an individual song from its context menu or save a playlist to include its tracks.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "احفظ أغنية منفردة من قائمة السياق أو احفظ قائمة تشغيل لتضمين مساراتها."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrez un morceau individuel depuis son menu contextuel ou enregistrez une playlist pour inclure ses morceaux."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simpan lagu individual dari menu konteks atau simpan playlist untuk menyertakan lagunya."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개별 노래는 컨텍스트 메뉴에서 저장하거나, 재생목록을 저장해 트랙을 포함할 수 있습니다."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tek bir şarkıyı bağlam menüsünden kaydedin veya parçalarını dahil etmek için bir çalma listesini kaydedin."
+          }
+        }
+      }
+    },
+    "No offline playlists yet": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد قوائم تشغيل دون اتصال بعد"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune playlist hors ligne pour le moment"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Belum ada playlist offline"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 오프라인 재생목록이 없습니다"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henüz çevrimdışı çalma listesi yok"
+          }
+        }
+      }
+    },
+    "No offline songs yet": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد أغانٍ دون اتصال بعد"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun morceau hors ligne pour le moment"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Belum ada lagu offline"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "아직 오프라인 노래가 없습니다"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henüz çevrimdışı şarkı yok"
+          }
+        }
+      }
+    },
+    "Manual save": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حفظ يدوي"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrement manuel"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simpan manual"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수동 저장"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elle kaydet"
+          }
+        }
+      }
+    },
+    "Refreshing...": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ التحديث..."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualisation..."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menyegarkan..."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새로고침 중..."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yenileniyor..."
+          }
+        }
+      }
+    },
+    "Syncing offline storage...": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ مزامنة التخزين دون اتصال..."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronisation du stockage hors ligne..."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Menyinkronkan penyimpanan offline..."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오프라인 저장 동기화 중..."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çevrimdışı depolama eşitleniyor..."
+          }
+        }
+      }
+    }
   },
   "version": "1.1"
 }

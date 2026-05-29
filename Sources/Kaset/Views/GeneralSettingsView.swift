@@ -49,6 +49,10 @@ struct GeneralSettingsView: View {
                 Toggle("Enable Synced Lyrics", isOn: self.$settings.syncedLyricsEnabled)
                     .help("Fetch and display real-time synced lyrics when available")
 
+                // Offline Storage
+                Toggle("Enable Offline Storage", isOn: self.$settings.offlineStorageEnabled)
+                    .help("Automatically save library playlists and their songs for offline access")
+
                 // Romanization
                 Toggle("Romanize Lyrics", isOn: self.$settings.romanizationEnabled)
                     .help("Show romanized text (romaji, pinyin, etc.) below non-Latin lyrics")

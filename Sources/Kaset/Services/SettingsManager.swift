@@ -21,6 +21,7 @@ final class SettingsManager {
         static let mediaControlStyle = "settings.mediaControlStyle"
         static let playbackAudioQuality = "settings.playbackAudioQuality"
         static let syncedLyricsEnabled = "settings.syncedLyricsEnabled"
+        static let offlineStorageEnabled = "settings.offlineStorageEnabled"
         static let romanizationEnabled = "settings.romanizationEnabled"
         static let contentLanguage = "settings.contentLanguage"
         static let keepMiniPlayerOnTop = "settings.keepMiniPlayerOnTop"
@@ -267,6 +268,13 @@ final class SettingsManager {
         }
     }
 
+    /// Whether offline storage auto-saves playlists and songs.
+    var offlineStorageEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(self.offlineStorageEnabled, forKey: Keys.offlineStorageEnabled)
+        }
+    }
+
     /// Whether romanization of non-Latin lyrics is enabled.
     var romanizationEnabled: Bool {
         didSet {
@@ -310,6 +318,7 @@ final class SettingsManager {
         self.scrobblePercentThreshold = UserDefaults.standard.object(forKey: Keys.scrobblePercentThreshold) as? Double ?? 0.5
         self.scrobbleMinSeconds = UserDefaults.standard.object(forKey: Keys.scrobbleMinSeconds) as? Double ?? 240
         self.syncedLyricsEnabled = UserDefaults.standard.object(forKey: Keys.syncedLyricsEnabled) as? Bool ?? true
+        self.offlineStorageEnabled = UserDefaults.standard.object(forKey: Keys.offlineStorageEnabled) as? Bool ?? false
         self.romanizationEnabled = UserDefaults.standard.object(forKey: Keys.romanizationEnabled) as? Bool ?? true
         self.keepMiniPlayerOnTop = UserDefaults.standard.object(forKey: Keys.keepMiniPlayerOnTop) as? Bool ?? false
 

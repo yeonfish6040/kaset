@@ -242,6 +242,10 @@ struct PlayerBar: View {
         if let client = self.playerService.ytMusicClient {
             Divider()
 
+            OfflineStorageContextMenu(song: track, client: client)
+
+            Divider()
+
             AddToPlaylistContextMenu(song: track, client: client)
         }
 

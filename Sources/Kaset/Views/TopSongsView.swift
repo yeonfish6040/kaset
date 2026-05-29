@@ -164,6 +164,10 @@ struct TopSongsView: View {
 
             Divider()
 
+            OfflineStorageContextMenu(song: song, client: self.viewModel.client)
+
+            Divider()
+
             AddToPlaylistContextMenu(song: song, client: self.viewModel.client)
 
             Divider()

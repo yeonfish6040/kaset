@@ -13,6 +13,7 @@
 //  Commands:
 //    browse <browseId> [params]    - Explore a browse endpoint
 //    action <endpoint> <body>      - Explore an action endpoint (body as JSON)
+//    player <videoId>              - Explore player streams with sanitized format output
 //    continuation <token> [ep]     - Explore a continuation (ep: browse or next)
 //    list                          - List all known endpoints
 //    auth                          - Check authentication status
@@ -21,6 +22,8 @@
 //  Options:
 //    -v, --verbose                 - Show full raw JSON response (not truncated)
 //    -o, --output <file>           - Save raw JSON response to a file
+//    --cookies <file>              - Use a Netscape cookie export
+//    --stream-test                 - Test first-byte stream downloads for player
 //
 //  Examples:
 //    ./Tools/api-explorer.swift browse FEmusic_home
@@ -35,11 +38,12 @@
 import CommonCrypto
 import Dispatch
 import Foundation
+import YouTubeExtraction
 
 // MARK: - Configuration
 
 let apiKey = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
-let clientVersion = "1.20231204.01.00"
+let clientVersion = "1.20260114.03.00"
 let baseURL = "https://music.youtube.com/youtubei/v1"
 let origin = "https://music.youtube.com"
 
@@ -48,6 +52,9 @@ nonisolated(unsafe) var globalAuthUserIndex = 0
 
 /// Global brand account ID (21-digit number from myaccount.google.com/brandaccounts)
 nonisolated(unsafe) var globalBrandAccountId: String?
+
+/// Optional Netscape cookie export path for authenticated exploration.
+nonisolated(unsafe) var globalCookieFilePath: String?
 
 // MARK: - Cookie Management
 
@@ -106,6 +113,60 @@ func loadCookiesFromAppBackup() -> [HTTPCookie]? {
     }
 
     return cookies.isEmpty ? nil : cookies
+}
+
+func loadCookiesFromNetscapeFile(path: String) -> [HTTPCookie]? {
+    guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
+        return nil
+    }
+
+    let cookies = contents
+        .split(whereSeparator: \.isNewline)
+        .compactMap { line -> HTTPCookie? in
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("#") else {
+                return nil
+            }
+
+            let columns = trimmed.split(separator: "\t", omittingEmptySubsequences: false)
+            guard columns.count >= 7 else {
+                return nil
+            }
+
+            let domain = String(columns[0])
+            let path = String(columns[2])
+            let secure = String(columns[3]).uppercased() == "TRUE"
+            let expires = TimeInterval(String(columns[4])).map(Date.init(timeIntervalSince1970:))
+            let name = String(columns[5])
+            let value = String(columns[6])
+
+            var properties: [HTTPCookiePropertyKey: Any] = [
+                .domain: domain,
+                .path: path.isEmpty ? "/" : path,
+                .name: name,
+                .value: value,
+            ]
+            if secure {
+                properties[.secure] = "TRUE"
+            }
+            if let expires {
+                properties[.expires] = expires
+            }
+
+            return HTTPCookie(properties: properties)
+        }
+
+    return cookies.isEmpty ? nil : cookies
+}
+
+func loadCookies() -> [HTTPCookie]? {
+    if let globalCookieFilePath,
+       let cookies = loadCookiesFromNetscapeFile(path: globalCookieFilePath)
+    {
+        return cookies
+    }
+
+    return loadCookiesFromAppBackup()
 }
 
 /// Filters cookies to those that match the music.youtube.com domain.
@@ -188,6 +249,23 @@ func buildContext(brandAccountId: String? = nil) -> [String: Any] {
     ]
 }
 
+func buildIOSContext() -> [String: Any] {
+    [
+        "client": [
+            "clientName": "IOS",
+            "clientVersion": "21.02.3",
+            "deviceMake": "Apple",
+            "deviceModel": "iPhone16,2",
+            "userAgent": "com.google.ios.youtube/21.02.3 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)",
+            "osName": "iPhone",
+            "osVersion": "18.3.2.22D82",
+        ],
+        "user": [
+            "lockedSafetyMode": false,
+        ],
+    ]
+}
+
 func buildHeaders(authenticated: Bool = false, authUserIndex: Int? = nil) -> [String: String] {
     var headers: [String: String] = [
         "Content-Type": "application/json",
@@ -197,7 +275,7 @@ func buildHeaders(authenticated: Bool = false, authUserIndex: Int? = nil) -> [St
         "Referer": "\(origin)/",
     ]
 
-    if authenticated, let cookies = loadCookiesFromAppBackup() {
+    if authenticated, let cookies = loadCookies() {
         if let sapisid = getSAPISID(from: cookies),
            let cookieHeader = buildCookieHeader(from: cookies)
         {
@@ -232,7 +310,9 @@ func makeRequest(endpoint: String, body: [String: Any], authenticated: Bool = fa
     }
 
     var fullBody = body
-    fullBody["context"] = buildContext()
+    if fullBody["context"] == nil {
+        fullBody["context"] = buildContext()
+    }
     request.httpBody = try JSONSerialization.data(withJSONObject: fullBody)
 
     let (data, response) = try await URLSession.shared.data(for: request)
@@ -447,6 +527,112 @@ func analyzeResponse(_ data: [String: Any], verbose: Bool = false) -> String {
     return output
 }
 
+private func playerAudioFormats(from playerResponse: [String: Any]) -> [[String: Any]] {
+    guard let streamingData = playerResponse["streamingData"] as? [String: Any] else {
+        return []
+    }
+
+    let adaptiveFormats = streamingData["adaptiveFormats"] as? [[String: Any]] ?? []
+    let formats = streamingData["formats"] as? [[String: Any]] ?? []
+    return (adaptiveFormats + formats).filter { format in
+        (format["mimeType"] as? String)?.contains("audio/") == true
+    }
+}
+
+private func downloadablePlayerAudioFormats(from playerResponse: [String: Any]) -> [[String: Any]] {
+    playerAudioFormats(from: playerResponse).filter {
+        YouTubeStreamURLResolver.streamFormat(from: $0) != nil
+    }
+}
+
+private func playerSummary(_ data: [String: Any]) -> String {
+    let playabilityStatus = data["playabilityStatus"] as? [String: Any]
+    let status = playabilityStatus?["status"] as? String ?? "unknown"
+    let reason = playabilityStatus?["reason"] as? String
+    let formats = playerAudioFormats(from: data)
+    let poTokenAvailable = YouTubePOToken.token(from: data) != nil || YouTubePOToken.configuredGVSToken() != nil
+
+    var output = "\n🎧 Player stream summary:\n"
+    output += "  • Playability: \(status)"
+    if let reason, !reason.isEmpty {
+        output += " (\(reason))"
+    }
+    output += "\n"
+    output += "  • Audio formats: \(formats.count)\n"
+    output += "  • GVS PO token available: \(poTokenAvailable ? "yes" : "no")\n"
+
+    for (index, format) in formats.prefix(8).enumerated() {
+        let mimeType = format["mimeType"] as? String ?? "unknown"
+        let itag = format["itag"].map { "\($0)" } ?? "unknown"
+        let bitrate = format["bitrate"].map { "\($0)" } ?? "unknown"
+        let contentLength = format["contentLength"].map { "\($0)" } ?? "unknown"
+        let baseURL = YouTubeStreamURLResolver.baseURL(from: format)
+        let hasN = baseURL.flatMap { YouTubeStreamURLResolver.queryValue(name: "n", in: $0) } != nil
+        let hasPot = baseURL.flatMap { YouTubeStreamURLResolver.queryValue(name: "pot", in: $0) } != nil
+        let hasCipher = format["signatureCipher"] != nil || format["cipher"] != nil
+        let hasEncryptedSignature = YouTubeStreamURLResolver.encryptedSignature(from: format) != nil
+        let hasURL = format["url"] != nil
+        let keys = format.keys.sorted().joined(separator: ",")
+
+        output += """
+          [\(index)] itag=\(itag) mime=\(mimeType) bitrate=\(bitrate) bytes=\(contentLength) url=\(hasURL ? "yes" : "no") cipher=\(hasCipher ? "yes" : "no") sig=\(hasEncryptedSignature ? "yes" : "no") n=\(hasN ? "yes" : "no") pot=\(hasPot ? "yes" : "no") keys=\(keys)
+
+        """
+    }
+
+    return output
+}
+
+private func testAudioFormatDownload(
+    format: [String: Any],
+    videoId: String,
+    poToken: String?
+) async -> (statusCode: Int?, contentType: String?, resolvedN: Bool, addedPot: Bool, error: String?) {
+    let playerContext = await YouTubePlayerContextProvider.shared.currentContext(videoId: videoId)
+    let resolver = YouTubeStreamURLResolver()
+    guard let streamFormat = YouTubeStreamURLResolver.streamFormat(from: format),
+          let resolvedURL = await resolver.resolvedURL(
+              from: streamFormat,
+              playerJavaScriptURL: playerContext?.javaScriptURL,
+              poToken: poToken
+          )
+    else {
+        return (nil, nil, false, false, "url-unavailable")
+    }
+
+    let baseN = YouTubeStreamURLResolver.queryValue(name: "n", in: streamFormat.baseURL)
+    let resolvedN = YouTubeStreamURLResolver.queryValue(name: "n", in: resolvedURL)
+    let addedPot = YouTubeStreamURLResolver.queryValue(name: "pot", in: streamFormat.baseURL) == nil
+        && YouTubeStreamURLResolver.queryValue(name: "pot", in: resolvedURL) != nil
+
+    var request = URLRequest(url: resolvedURL)
+    request.httpMethod = "GET"
+    request.setValue(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+        forHTTPHeaderField: "User-Agent"
+    )
+    request.setValue("*/*", forHTTPHeaderField: "Accept")
+    request.setValue("bytes=0-0", forHTTPHeaderField: "Range")
+
+    do {
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            return (nil, nil, baseN != nil && resolvedN != nil && baseN != resolvedN, addedPot, "missing-http-response")
+        }
+
+        return (
+            httpResponse.statusCode,
+            httpResponse.value(forHTTPHeaderField: "Content-Type"),
+            baseN != nil && resolvedN != nil && baseN != resolvedN,
+            addedPot,
+            nil
+        )
+    } catch {
+        let code = (error as? URLError)?.code.rawValue
+        return (nil, nil, baseN != nil && resolvedN != nil && baseN != resolvedN, addedPot, "network-error\(code.map { ":\($0)" } ?? "")")
+    }
+}
+
 // MARK: - Commands
 
 /// Known endpoints that require authentication
@@ -482,7 +668,7 @@ func needsAuthentication(_ browseId: String) -> Bool {
     }
     // Playlists (VL...) benefit from authentication for personalized content
     if browseId.hasPrefix("VL") || browseId.hasPrefix("PL") {
-        return loadCookiesFromAppBackup() != nil // Use auth if available
+        return loadCookies() != nil // Use auth if available
     }
     // Podcast shows (MPSPP...) require authentication for episode data
     if browseId.hasPrefix("MPSPP") {
@@ -502,7 +688,7 @@ func exploreBrowse(
         print("   Params: \(params)")
     }
     if needsAuth {
-        let hasAuth = loadCookiesFromAppBackup() != nil
+        let hasAuth = loadCookies() != nil
         print("   Auth required: \(hasAuth ? "✅ cookies available" : "❌ no cookies found")")
     }
     print()
@@ -576,12 +762,12 @@ let authRequiredActions = Set([
 func exploreAction(
     _ endpoint: String, bodyJson: String, verbose: Bool = false, outputFile: String? = nil
 ) async {
-    let needsAuth = authRequiredActions.contains(endpoint)
+    let needsAuth = authRequiredActions.contains(endpoint) || (endpoint == "player" && loadCookies() != nil)
     let authIcon = needsAuth ? "🔐" : "🌐"
 
     print("\(authIcon) Exploring action endpoint: \(endpoint)")
     if needsAuth {
-        let hasAuth = loadCookiesFromAppBackup() != nil
+        let hasAuth = loadCookies() != nil
         print("   Auth required: \(hasAuth ? "✅ cookies available" : "❌ no cookies found")")
     }
     print()
@@ -627,6 +813,115 @@ func exploreAction(
                 try prettyData.write(to: url)
                 print("\n💾 Saved to: \(outputFile)")
             }
+        }
+    } catch {
+        print("❌ Error: \(error.localizedDescription)")
+    }
+}
+
+func explorePlayer(videoId: String, testDownload: Bool, verbose: Bool = false, outputFile: String? = nil) async {
+    print("🎧 Exploring player endpoint: \(videoId)")
+    let hasAuth = loadCookies() != nil
+    print("   Auth: \(hasAuth ? "cookies available" : "no cookies")")
+
+    let playerContext = await YouTubePlayerContextProvider.shared.currentContext(videoId: videoId)
+    if let playerContext {
+        print("   Player JS: available")
+        if let signatureTimestamp = playerContext.signatureTimestamp {
+            print("   Signature timestamp: \(signatureTimestamp)")
+        }
+    } else {
+        print("   Player JS: unavailable")
+    }
+    print()
+
+    var contentPlaybackContext: [String: Any] = [
+        "autoCaptionsDefaultOn": false,
+        "autonavState": "STATE_NONE",
+        "html5Preference": "HTML5_PREF_WANTS",
+        "lactMilliseconds": "-1",
+        "splay": false,
+        "vis": 0,
+    ]
+    if let signatureTimestamp = playerContext?.signatureTimestamp {
+        contentPlaybackContext["signatureTimestamp"] = signatureTimestamp
+    }
+
+    var body: [String: Any] = [
+        "videoId": videoId,
+        "contentCheckOk": true,
+        "racyCheckOk": true,
+        "playbackContext": [
+            "contentPlaybackContext": contentPlaybackContext,
+        ],
+    ]
+    if let playerToken = YouTubePOToken.configuredPlayerToken() {
+        body["serviceIntegrityDimensions"] = ["poToken": playerToken]
+    }
+
+    do {
+        var (data, statusCode) = try await makeRequest(
+            endpoint: "player",
+            body: body,
+            authenticated: hasAuth
+        )
+        if downloadablePlayerAudioFormats(from: data).isEmpty {
+            var iOSBody = body
+            iOSBody["context"] = buildIOSContext()
+            let fallback = try await makeRequest(
+                endpoint: "player",
+                body: iOSBody,
+                authenticated: hasAuth
+            )
+            if !downloadablePlayerAudioFormats(from: fallback.data).isEmpty {
+                data = fallback.data
+                statusCode = fallback.statusCode
+                print("   Fallback client: IOS")
+            }
+        }
+
+        print("✅ HTTP \(statusCode)")
+        print(playerSummary(data))
+
+        if testDownload {
+            let poToken = YouTubePOToken.token(from: data) ?? YouTubePOToken.configuredGVSToken()
+            let formats = playerAudioFormats(from: data)
+            print("🧪 First-byte stream checks:")
+            for (index, format) in formats.prefix(5).enumerated() {
+                let result = await testAudioFormatDownload(
+                    format: format,
+                    videoId: videoId,
+                    poToken: poToken
+                )
+                if let statusCode = result.statusCode {
+                    let contentType = result.contentType ?? "unknown"
+                    print(
+                        "  [\(index)] HTTP \(statusCode), content-type=\(contentType), nResolved=\(result.resolvedN ? "yes" : "no"), potAdded=\(result.addedPot ? "yes" : "no")"
+                    )
+                } else {
+                    print("  [\(index)] unavailable (\(result.error ?? "unknown"))")
+                }
+            }
+        }
+
+        if verbose {
+            print("\n📄 Raw response (pretty-printed):")
+            if let prettyData = try? JSONSerialization.data(
+                withJSONObject: data,
+                options: .prettyPrinted
+            ),
+                let prettyString = String(data: prettyData, encoding: .utf8)
+            {
+                print(prettyString)
+            }
+        }
+
+        if let outputFile,
+           let prettyData = try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
+        {
+            let url = URL(fileURLWithPath: outputFile)
+            try prettyData.write(to: url)
+            print("\n💾 Saved to: \(outputFile)")
         }
     } catch {
         print("❌ Error: \(error.localizedDescription)")
@@ -747,7 +1042,7 @@ func checkAuthStatus() {
     print("🔐 Authentication Status")
     print("========================\n")
 
-    guard let cookies = loadCookiesFromAppBackup() else {
+    guard let cookies = loadCookies() else {
         print("❌ No cookies found")
         print()
         print("To enable authenticated API access:")
@@ -759,7 +1054,8 @@ func checkAuthStatus() {
     }
 
     let matchingCookies = filterCookiesForMusicYouTube(cookies)
-    print("✅ Found \(cookies.count) cookies in app backup")
+    let source = globalCookieFilePath == nil ? "app backup" : "cookie export"
+    print("✅ Found \(cookies.count) cookies in \(source)")
     print("✅ \(matchingCookies.count) cookies match music.youtube.com domain\n")
 
     // Check for key auth cookies (in youtube.com domain)
@@ -809,7 +1105,7 @@ func discoverAccounts(verbose: Bool) async {
     print("🔍 Discovering Accounts")
     print("=======================\n")
 
-    guard loadCookiesFromAppBackup() != nil else {
+    guard loadCookies() != nil else {
         print("❌ No cookies found. Please sign in to Kaset first.")
         return
     }
@@ -963,7 +1259,7 @@ func discoverBrandAccounts(verbose: Bool) async {
     print("🔍 Discovering Brand Accounts")
     print("=============================\n")
 
-    guard loadCookiesFromAppBackup() != nil else {
+    guard loadCookies() != nil else {
         print("❌ No cookies found. Please sign in to Kaset first.")
         return
     }
@@ -1287,6 +1583,7 @@ func showHelp() {
         Commands:
           browse <browseId> [params]     Explore a browse endpoint
           action <endpoint> <body>       Explore an action endpoint (body as JSON)
+          player <videoId>               Explore player streams and URL solving
           continuation <token> [ep]      Explore a continuation (ep: 'browse' or 'next')
           list                           List all known endpoints
           auth                           Check authentication status
@@ -1299,6 +1596,8 @@ func showHelp() {
           -o, --output <file>            Save raw JSON response to a file
           --authuser N                   Use Google account at index N (for multi-account)
           --brand <ID>                   Use brand account ID (21-digit number)
+          --cookies <file>               Use a Netscape cookie export
+          --stream-test                  Test first-byte stream downloads for player
 
         Examples:
           # Explore public endpoints
@@ -1318,6 +1617,7 @@ func showHelp() {
           # Action endpoints
           ./api-explorer.swift action search '{"query":"never gonna give you up"}'
           ./api-explorer.swift action player '{"videoId":"dQw4w9WgXcQ"}'
+          ./api-explorer.swift player dQw4w9WgXcQ --stream-test --cookies /path/to/cookies.txt
           ./api-explorer.swift action next '{"playlistId":"RDEM...","videoId":"abc123"}'
 
           # Continuation (for pagination / infinite mix)
@@ -1341,6 +1641,7 @@ func showHelp() {
 func runMain() async {
     let args = Array(CommandLine.arguments.dropFirst())
     let verbose = args.contains("-v") || args.contains("--verbose")
+    let streamTest = args.contains("--stream-test")
 
     // Parse output file option
     var outputFile: String?
@@ -1369,6 +1670,14 @@ func runMain() async {
         }
     }
 
+    // Parse external Netscape cookie export option
+    for (index, arg) in args.enumerated() {
+        if arg == "--cookies", index + 1 < args.count {
+            globalCookieFilePath = args[index + 1]
+            break
+        }
+    }
+
     // Filter out option flags and their values
     var filteredArgs: [String] = []
     var skipNext = false
@@ -1377,10 +1686,10 @@ func runMain() async {
             skipNext = false
             continue
         }
-        if arg == "-v" || arg == "--verbose" {
+        if arg == "-v" || arg == "--verbose" || arg == "--stream-test" {
             continue
         }
-        if arg == "-o" || arg == "--output" || arg == "--authuser" || arg == "--brand" {
+        if arg == "-o" || arg == "--output" || arg == "--authuser" || arg == "--brand" || arg == "--cookies" {
             skipNext = true
             continue
         }
@@ -1411,6 +1720,18 @@ func runMain() async {
         let endpoint = filteredArgs[1]
         let bodyJson = filteredArgs[2]
         await exploreAction(endpoint, bodyJson: bodyJson, verbose: verbose, outputFile: outputFile)
+
+    case "player":
+        guard filteredArgs.count >= 2 else {
+            print("❌ Usage: player <videoId> [--stream-test]")
+            return
+        }
+        await explorePlayer(
+            videoId: filteredArgs[1],
+            testDownload: streamTest,
+            verbose: verbose,
+            outputFile: outputFile
+        )
 
     case "continuation":
         guard filteredArgs.count >= 2 else {

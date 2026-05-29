@@ -20,6 +20,7 @@ enum AccessibilityID {
         static let podcastsItem = "sidebar.podcasts"
         static let likedMusicItem = "sidebar.likedMusic"
         static let libraryItem = "sidebar.library"
+        static let offlineStorageItem = "sidebar.offlineStorage"
         static let historyItem = "sidebar.history"
     }
 
@@ -151,6 +152,7 @@ enum AccessibilityID {
         static let header = "playlistDetailView.header"
         static let playButton = "playlistDetailView.playButton"
         static let shuffleButton = "playlistDetailView.shuffleButton"
+        static let offlineSaveButton = "playlistDetailView.offlineSaveButton"
         static let tracksList = "playlistDetailView.tracksList"
         static let loadingIndicator = "playlistDetailView.loading"
 
@@ -175,6 +177,15 @@ enum AccessibilityID {
         static let commandBar = "mainWindow.commandBar"
         static let commandBarOverlay = "mainWindow.commandBarOverlay"
         static let commandBarInput = "mainWindow.commandBarInput"
+    }
+
+    // MARK: - Offline Storage
+
+    enum OfflineStorage {
+        static let container = "offlineStorageView"
+        static let refreshButton = "offlineStorageView.refreshButton"
+        static let playlistTab = "offlineStorageView.playlistsTab"
+        static let songsTab = "offlineStorageView.songsTab"
     }
 
     // MARK: - Explore View

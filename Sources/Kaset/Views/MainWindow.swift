@@ -24,6 +24,7 @@ struct MainWindow: View {
     @Environment(AccountService.self) private var accountService
     @Environment(SongLikeStatusManager.self) private var likeStatusManager
     @Environment(PodcastsAvailabilityService.self) private var podcastsAvailability
+    @Environment(OfflineStorageManager.self) private var offlineStorageManager
     @Environment(\.searchFocusTrigger) private var searchFocusTrigger
     @Environment(\.showCommandBar) private var showCommandBar
     @Environment(\.showWhatsNew) private var showWhatsNew
@@ -255,6 +256,10 @@ struct MainWindow: View {
                             await self.playerService.fetchSongMetadata(videoId: currentVideoId)
                         }
                     }
+
+                    group.addTask {
+                        await self.offlineStorageManager.refreshLibraryPlaylists(using: self.client)
+                    }
                 }
             }
         }
@@ -465,6 +470,8 @@ struct MainWindow: View {
                 }
             case .library:
                 if let vm = libraryViewModel { LibraryView(viewModel: vm) }
+            case .offlineStorage:
+                OfflineStorageView(client: self.client)
             case .history:
                 if let vm = historyViewModel { HistoryView(viewModel: vm) }
             }
@@ -611,6 +618,7 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
     case podcasts = "Podcasts"
     case likedMusic = "Liked Music"
     case library = "Library"
+    case offlineStorage = "Offline Storage"
     case history = "History"
 
     var id: String {
@@ -637,6 +645,8 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
             String(localized: "Liked Music")
         case .library:
             String(localized: "Library")
+        case .offlineStorage:
+            String(localized: "Offline Storage")
         case .history:
             String(localized: "History")
         }
@@ -662,6 +672,8 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
             "heart.fill"
         case .library:
             "square.stack.fill"
+        case .offlineStorage:
+            "externaldrive.fill"
         case .history:
             "clock.arrow.circlepath"
         }
@@ -679,4 +691,5 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
         .environment(PlayerService())
         .environment(WebKitManager.shared)
         .environment(accountService)
+        .environment(OfflineStorageManager(skipLoad: true, skipPersistence: true))
 }

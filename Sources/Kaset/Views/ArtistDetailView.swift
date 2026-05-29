@@ -409,6 +409,10 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
 
             Divider()
 
+            OfflineStorageContextMenu(song: song, client: self.viewModel.client)
+
+            Divider()
+
             AddToPlaylistContextMenu(song: song, client: self.viewModel.client)
 
             // Go to Album - show if album has valid browse ID

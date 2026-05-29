@@ -255,6 +255,9 @@ protocol YTMusicClientProtocol: Sendable {
     /// Fetches song metadata by video ID.
     func getSong(videoId: String) async throws -> Song
 
+    /// Fetches the raw player response for a video ID.
+    func getPlayer(videoId: String) async throws -> [String: Any]
+
     /// Fetches a radio queue (similar songs) based on a video ID.
     /// Returns an array of songs that form a "radio" playlist based on the seed track.
     func getRadioQueue(videoId: String) async throws -> [Song]

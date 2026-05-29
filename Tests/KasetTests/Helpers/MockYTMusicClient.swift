@@ -79,6 +79,7 @@ final class MockYTMusicClient: YTMusicClientProtocol { // swiftlint:disable:this
     var artistSongsResponse: [Song] = []
     var moodCategoryResponse: HomeResponse = .init(sections: [])
     var lyricsResponses: [String: Lyrics] = [:]
+    var playerResponses: [String: [String: Any]] = [:]
     var radioQueueSongs: [String: [Song]] = [:]
     var songResponses: [String: Song] = [:]
     var accountsListResponse: AccountsListResponse = .init(googleEmail: "test@gmail.com", accounts: [])
@@ -214,6 +215,8 @@ final class MockYTMusicClient: YTMusicClientProtocol { // swiftlint:disable:this
     private(set) var unsubscribeFromArtistIds: [String] = []
     private(set) var getLyricsCalled = false
     private(set) var getLyricsVideoIds: [String] = []
+    private(set) var getPlayerCalled = false
+    private(set) var getPlayerVideoIds: [String] = []
     private(set) var getRadioQueueCalled = false
     private(set) var getRadioQueueVideoIds: [String] = []
     private(set) var moodCategoryCalled = false
@@ -867,6 +870,20 @@ final class MockYTMusicClient: YTMusicClientProtocol { // swiftlint:disable:this
     func getTimedLyrics(videoId _: String) async throws -> LyricResult {
         if let error = shouldThrowError { throw error }
         return .unavailable
+    }
+
+    func getPlayer(videoId: String) async throws -> [String: Any] {
+        self.getPlayerCalled = true
+        self.getPlayerVideoIds.append(videoId)
+        if let error = shouldThrowError { throw error }
+        return self.playerResponses[videoId] ?? [
+            "playabilityStatus": [
+                "status": "OK",
+            ],
+            "streamingData": [
+                "adaptiveFormats": [],
+            ],
+        ]
     }
 
     func getSong(videoId: String) async throws -> Song {

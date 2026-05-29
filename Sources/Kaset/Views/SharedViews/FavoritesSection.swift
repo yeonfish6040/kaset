@@ -184,6 +184,9 @@ struct FavoritesSection: View {
 
             if let client = self.playerService.ytMusicClient {
                 Divider()
+                OfflineStorageContextMenu(song: song, client: client)
+
+                Divider()
                 AddToPlaylistContextMenu(song: song, client: client)
             }
         }

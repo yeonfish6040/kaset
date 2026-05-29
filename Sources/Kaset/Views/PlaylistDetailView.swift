@@ -11,6 +11,7 @@ struct PlaylistDetailView: View {
     @Environment(PlayerService.self) var playerService
     @Environment(FavoritesManager.self) private var favoritesManager
     @Environment(SidebarPinnedItemsManager.self) var sidebarPinnedItemsManager: SidebarPinnedItemsManager?
+    @Environment(OfflineStorageManager.self) var offlineStorageManager: OfflineStorageManager
     @Environment(SongLikeStatusManager.self) private var likeStatusManager
     @Environment(LibraryViewModel.self) var libraryViewModel: LibraryViewModel?
     @Environment(\.dismiss) var dismiss
@@ -401,6 +402,10 @@ struct PlaylistDetailView: View {
 
             Divider()
 
+            OfflineStorageContextMenu(song: track, client: self.viewModel.client)
+
+            Divider()
+
             AddToPlaylistContextMenu(song: track, client: self.viewModel.client)
 
             Divider()
@@ -772,4 +777,5 @@ private struct HoverUnderlineNavigationLink<Value: Hashable>: View {
     .environment(PlayerService())
     .environment(FavoritesManager(skipLoad: true))
     .environment(SidebarPinnedItemsManager(skipLoad: true))
+    .environment(OfflineStorageManager(skipLoad: true, skipPersistence: true))
 }
